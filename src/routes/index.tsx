@@ -146,7 +146,7 @@ function Index() {
                   <div className="name">{p.name}</div>
                   {p.type === "split" && <div className="sn">with {p.partner}</div>}
                 </div>
-                <span className={`badge b-${p.type}`}>{p.type === "upi" ? "UPI" : p.type[0].toUpperCase() + p.type.slice(1)}</span>
+                <span className={`badge b-${p.type}`}>{p.type === "upi" ? "UPI" : p.type.charAt(0).toUpperCase() + p.type.slice(1)}</span>
                 <div className="amt" style={{ color }}>{later ? `${r(p.owed || perPerson)} 🕐` : r(p.amount)}</div>
                 <button className="del" onClick={() => remove(p.id)} aria-label={`Remove ${p.name}`}>✕</button>
               </div>
