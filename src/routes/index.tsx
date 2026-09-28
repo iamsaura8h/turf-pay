@@ -77,7 +77,7 @@ function Auth() {
         ? await supabase.auth.signInWithPassword({ email, password: pw })
         : await supabase.auth.signUp({ email, password: pw, options: { emailRedirectTo: window.location.origin } });
     setBusy(false);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     if (mode === "up" && !data.session) toast.success("Check your email to confirm your account.");
   };
   return (
@@ -122,7 +122,7 @@ function MatchList({ onOpen }: { onOpen: (id: string) => void }) {
       .insert({ title: title || "Turf game", total_cost: Number(cost) || 0 })
       .select()
       .single();
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     onOpen(data.id);
   };
 
@@ -186,7 +186,7 @@ function MatchView({ id, onBack }: { id: string; onBack: () => void }) {
     const list = names.split(/[,\n]/).map((n) => n.trim()).filter(Boolean);
     if (!list.length) return;
     const { error } = await supabase.from("players").insert(list.map((name) => ({ name, match_id: id })));
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     setNames("");
     load();
   };
@@ -295,7 +295,7 @@ function MatchView({ id, onBack }: { id: string; onBack: () => void }) {
   );
 }
 
-function Stat({ label, value, tone }: { label: string; value: string; tone?: string }) {
+function Stat({ label, value, tone }: { label: string; value: string; tone?: string | undefined }) {
   return (
     <div className="rounded-xl bg-muted/60 p-3">
       <div className="text-xs text-muted-foreground">{label}</div>
