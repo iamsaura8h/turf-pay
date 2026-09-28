@@ -14,7 +14,71 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      matches: {
+        Row: {
+          created_at: string
+          id: string
+          played_on: string
+          title: string
+          total_cost: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          played_on?: string
+          title?: string
+          total_cost?: number
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          played_on?: string
+          title?: string
+          total_cost?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      players: {
+        Row: {
+          cash: number
+          created_at: string
+          id: string
+          match_id: string
+          name: string
+          upi: number
+          user_id: string
+        }
+        Insert: {
+          cash?: number
+          created_at?: string
+          id?: string
+          match_id: string
+          name: string
+          upi?: number
+          user_id?: string
+        }
+        Update: {
+          cash?: number
+          created_at?: string
+          id?: string
+          match_id?: string
+          name?: string
+          upi?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "players_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
