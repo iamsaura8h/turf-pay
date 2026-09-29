@@ -1,10 +1,11 @@
-<!-- LOVABLE:BEGIN -->
-> [!IMPORTANT]
-> This project is connected to [Lovable](https://lovable.dev). Avoid rewriting
-> published git history — force pushing, or rebasing/amending/squashing commits
-> that are already pushed — as it rewrites history on Lovable's side and the
-> user will likely lose their project history.
->
-> Commits you push to the connected branch sync back to Lovable and show up in
-> the editor, so keep the branch in a working state.
-<!-- LOVABLE:END -->
+# Turf Split (Game Dues Tracker)
+
+This repository is a production-level React frontend built with Vite, TypeScript, Tailwind CSS, and Supabase.
+
+## Project Guidelines
+
+- **Framework**: Vite + React 19 SPA (Single Page Application).
+- **Styling**: Tailwind CSS v4 with semantic tokens configured in `src/styles.css`.
+- **Backend / Database**: Supabase for authentication and data storage (`matches` and `players` tables).
+- **Component UI**: Reusable UI components in `src/components/ui/` with icons from `lucide-react` and toasts via `sonner`.
+- Keep components clean, type-safe, and beginner-friendly.

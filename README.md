@@ -1,29 +1,61 @@
-# Welcome to your Lovable project
+# ⚽ Turf Split — Game Dues Tracker
 
-This project was built with [Lovable](https://lovable.dev).
+A sleek, fast, and simple React application to manage turf games, split costs, log cash and UPI payments, and track who still owes money.
 
-## Build with Lovable
+## ✨ Features
 
-Open your project in the [Lovable editor](https://lovable.dev) and keep building.
+- **Authentication**: Email & password authentication powered by Supabase.
+- **Game Management**: Create and track football/turf games with total booking costs and played dates.
+- **Payment Tracking**:
+  - Support for **Cash**, **UPI**, **Pay Later**, and **Split** (between pairs).
+  - One-click payment settling for "Pay Later" players.
+- **Automatic Breakdown**:
+  - Real-time calculations of total collected vs. turf cost.
+  - Automatic computation of pending amounts and organizer surplus ("My cut").
+- **Clean & Responsive UI**: Built with Tailwind CSS and Radix UI primitives.
 
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: connect the project to GitHub and every change made in Lovable is committed straight to your repository.
-- **Full ownership**: this code is yours. Push to your repository and your changes sync back into Lovable, ready for your next prompt.
+## 🚀 Getting Started
 
-## Development
+### 1. Prerequisites
 
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+- [Node.js](https://nodejs.org/) (v18 or higher)
+- npm
+
+### 2. Installation
 
 ```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
+npm install
+```
+
+### 3. Environment Variables
+
+Create a `.env` file in the project root (or verify your existing one):
+
+```env
+VITE_SUPABASE_URL="https://your-project.supabase.co"
+VITE_SUPABASE_PUBLISHABLE_KEY="your-anon-key"
+```
+
+### 4. Running Locally
+
+```sh
 npm run dev
 ```
 
-## Built with
+Open [http://localhost:8080](http://localhost:8080) in your browser.
 
-- TanStack Start
-- TypeScript
-- React
-- Tailwind CSS
+### 5. Building for Production
+
+```sh
+npm run build
+```
+
+## 🛠️ Tech Stack
+
+- **React 19**
+- **Vite**
+- **TypeScript**
+- **Tailwind CSS v4**
+- **Supabase** (Database & Auth)
+- **Lucide React** (Icons)
+- **Sonner** (Toast notifications)
