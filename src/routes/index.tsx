@@ -105,11 +105,11 @@ function MatchList({ onOpen }: { onOpen: (id: string) => void }) {
 
   const load = async () => {
     const { data: m } = await supabase.from("matches").select("*").order("played_on", { ascending: false }).order("created_at", { ascending: false });
-    const { data: p } = await supabase.from("players").select("match_id,cash,upi");
+    const { data: p } = await supabase.from("players").select("match_id,amount");
     setMatches(
       (m ?? []).map((x) => {
         const ps = (p ?? []).filter((y) => y.match_id === x.id);
-        return { ...x, total_cost: Number(x.total_cost), count: ps.length, collected: ps.reduce((a, y) => a + Number(y.cash) + Number(y.upi), 0) };
+        return { ...x, total_cost: Number(x.total_cost), count: ps.length, collected: ps.reduce((a, y) => a + Number(y.amount), 0) };
       }),
     );
   };
