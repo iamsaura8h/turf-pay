@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          per_person: number
           played_on: string
           title: string
           total_cost: number
@@ -26,6 +27,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          per_person?: number
           played_on?: string
           title?: string
           total_cost?: number
@@ -34,6 +36,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          per_person?: number
           played_on?: string
           title?: string
           total_cost?: number
@@ -43,29 +46,41 @@ export type Database = {
       }
       players: {
         Row: {
+          amount: number
           cash: number
           created_at: string
           id: string
           match_id: string
           name: string
+          owed: number | null
+          partner: string | null
+          pay_type: string
           upi: number
           user_id: string
         }
         Insert: {
+          amount?: number
           cash?: number
           created_at?: string
           id?: string
           match_id: string
           name: string
+          owed?: number | null
+          partner?: string | null
+          pay_type?: string
           upi?: number
           user_id?: string
         }
         Update: {
+          amount?: number
           cash?: number
           created_at?: string
           id?: string
           match_id?: string
           name?: string
+          owed?: number | null
+          partner?: string | null
+          pay_type?: string
           upi?: number
           user_id?: string
         }
