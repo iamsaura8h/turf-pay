@@ -158,51 +158,79 @@ function MatchList({ onOpen }: { onOpen: (id: string) => void }) {
   );
 }
 
+type PT = "cash" | "upi" | "later" | "split";
+type Row = { id: string; name: string; pay_type: PT; amount: number; partner: string | null; owed: number | null };
+const LABELS: Record<PT, string> = { cash: "Cash", upi: "UPI", later: "Pay later", split: "Split" };
+const TONE: Record<PT, string> = {
+  cash: "bg-success/15 text-success",
+  upi: "bg-primary/10 text-primary",
+  later: "bg-destructive/10 text-destructive",
+  split: "bg-muted text-foreground",
+};
+
 function MatchView({ id, onBack }: { id: string; onBack: () => void }) {
-  const [match, setMatch] = useState<Match | null>(null);
-  const [players, setPlayers] = useState<Player[]>([]);
-  const [names, setNames] = useState("");
+  const [match, setMatch] = useState<(Match & { per_person: number }) | null>(null);
+  const [rows, setRows] = useState<Row[]>([]);
+  const [type, setType] = useState<PT>("cash");
+  const [name, setName] = useState("");
+  const [amt, setAmt] = useState("");
+  const [partner, setPartner] = useState("");
+  const [busy, setBusy] = useState(false);
 
   const load = async () => {
     const { data: m } = await supabase.from("matches").select("*").eq("id", id).single();
     const { data: p } = await supabase.from("players").select("*").eq("match_id", id).order("created_at");
-    if (m) setMatch({ ...m, total_cost: Number(m.total_cost) });
-    setPlayers((p ?? []).map((x) => ({ id: x.id, name: x.name, cash: Number(x.cash), upi: Number(x.upi) })));
+    if (m) setMatch({ ...m, total_cost: Number(m.total_cost), per_person: Number(m.per_person) });
+    setRows((p ?? []).map((x) => ({ id: x.id, name: x.name, pay_type: x.pay_type as PT, amount: Number(x.amount), partner: x.partner, owed: x.owed == null ? null : Number(x.owed) })));
   };
   useEffect(() => { load(); }, [id]);
 
+  const per = match?.per_person || 0;
   const s = useMemo(() => {
-    const total = match?.total_cost ?? 0;
-    const share = players.length ? total / players.length : 0;
-    const cash = players.reduce((a, p) => a + p.cash, 0);
-    const upi = players.reduce((a, p) => a + p.upi, 0);
-    const extra = players.reduce((a, p) => a + Math.max(0, p.cash + p.upi - share), 0);
-    const pending = players.reduce((a, p) => a + Math.max(0, share - p.cash - p.upi), 0);
-    return { total, share, cash, upi, collected: cash + upi, extra, pending };
-  }, [match, players]);
+    const cash = rows.filter((r) => r.pay_type === "cash" || r.pay_type === "split").reduce((a, r) => a + r.amount, 0);
+    const upi = rows.filter((r) => r.pay_type === "upi").reduce((a, r) => a + r.amount, 0);
+    const pending = rows.filter((r) => r.pay_type === "later").reduce((a, r) => a + (r.owed ?? per), 0);
+    const paidCount = rows.filter((r) => r.pay_type !== "later").length;
+    const collected = cash + upi;
+    return { cash, upi, pending, collected, extra: Math.max(0, collected - paidCount * per), due: rows.length * per };
+  }, [rows, per]);
 
-  const addPlayers = async (e: React.FormEvent) => {
+  const add = async (e: React.FormEvent) => {
     e.preventDefault();
-    const list = names.split(/[,\n]/).map((n) => n.trim()).filter(Boolean);
-    if (!list.length) return;
-    const { error } = await supabase.from("players").insert(list.map((name) => ({ name, match_id: id })));
+    const n = name.trim().slice(0, 60);
+    if (!n) return;
+    const raw = Number(amt) || 0;
+    const base = { match_id: id, cash: 0, upi: 0 };
+    let ins: Array<Record<string, unknown>>;
+    if (type === "split") {
+      const pt = partner.trim().slice(0, 60);
+      const each = raw / 2;
+      ins = [{ ...base, name: n, pay_type: "split", amount: each, partner: pt || "?" }];
+      if (pt) ins.push({ ...base, name: pt, pay_type: "split", amount: each, partner: n });
+    } else if (type === "later") {
+      ins = [{ ...base, name: n, pay_type: "later", amount: 0, owed: raw || per }];
+    } else {
+      ins = [{ ...base, name: n, pay_type: type, amount: raw || per }];
+    }
+    setBusy(true);
+    const { error } = await supabase.from("players").insert(ins as never);
+    setBusy(false);
     if (error) { toast.error(error.message); return; }
-    setNames("");
+    setName(""); setAmt(""); setPartner("");
     load();
   };
 
-  const update = async (pid: string, patch: Partial<Player>) => {
-    setPlayers((ps) => ps.map((p) => (p.id === pid ? { ...p, ...patch } : p)));
-    const { error } = await supabase.from("players").update(patch).eq("id", pid);
-    if (error) toast.error(error.message);
+  const markPaid = async (r: Row, how: "cash" | "upi") => {
+    const { error } = await supabase.from("players").update({ pay_type: how, amount: r.owed ?? per, owed: null }).eq("id", r.id);
+    if (error) toast.error(error.message); else load();
   };
   const remove = async (pid: string) => {
-    setPlayers((ps) => ps.filter((p) => p.id !== pid));
+    setRows((ps) => ps.filter((p) => p.id !== pid));
     await supabase.from("players").delete().eq("id", pid);
   };
-  const updateCost = async (v: number) => {
-    setMatch((m) => (m ? { ...m, total_cost: v } : m));
-    await supabase.from("matches").update({ total_cost: v }).eq("id", id);
+  const updateMatch = async (patch: { total_cost?: number; per_person?: number }) => {
+    setMatch((m) => (m ? { ...m, ...patch } : m));
+    await supabase.from("matches").update(patch).eq("id", id);
   };
   const delMatch = async () => {
     if (!confirm("Delete this game?")) return;
@@ -211,8 +239,8 @@ function MatchView({ id, onBack }: { id: string; onBack: () => void }) {
   };
 
   if (!match) return null;
-  const diff = s.collected - s.total;
-  const unpaid = players.filter((p) => p.cash + p.upi < s.share - 0.001);
+  const diff = s.collected - match.total_cost;
+  const amtLabel = type === "later" ? "Amount owed ₹" : type === "split" ? "Total paid for both ₹" : "Amount paid ₹";
 
   return (
     <div>
@@ -228,71 +256,93 @@ function MatchView({ id, onBack }: { id: string; onBack: () => void }) {
       </div>
 
       <div className="mt-6 rounded-2xl border bg-card p-5 shadow-sm">
-        <div className="flex items-end justify-between">
-          <div>
-            <div className="text-sm text-muted-foreground">Collected</div>
-            <div className="text-4xl font-semibold tracking-tight">{rs(s.collected)}</div>
-          </div>
-          <div className="text-right">
-            <label className="text-sm text-muted-foreground">Turf fee</label>
-            <Input type="number" inputMode="decimal" value={match.total_cost} onChange={(e) => updateCost(Number(e.target.value) || 0)} className="mt-1 h-9 w-28 text-right" />
-          </div>
-        </div>
-        <div className="mt-4 h-2 overflow-hidden rounded-full bg-muted">
-          <div className={`h-full ${diff >= 0 ? "bg-success" : "bg-foreground"}`} style={{ width: `${s.total ? Math.min(100, (s.collected / s.total) * 100) : 0}%` }} />
-        </div>
-        <div className={`mt-3 text-sm font-medium ${diff >= 0 ? "text-success" : "text-destructive"}`}>
-          {diff === 0 ? "Exactly settled" : diff > 0 ? `You got ${rs(diff)} more than the fee` : `${rs(-diff)} short of the fee`}
-        </div>
-        <div className="mt-5 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-          <Stat label="Per head" value={rs(s.share)} />
-          <Stat label="Cash" value={rs(s.cash)} />
-          <Stat label="UPI" value={rs(s.upi)} />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Stat label="Collected" value={rs(s.collected)} />
+          <Stat label="Players" value={String(rows.length)} />
           <Stat label="Pending" value={rs(s.pending)} tone={s.pending > 0 ? "text-destructive" : undefined} />
+          <Stat label="My cut" value={rs(s.extra)} tone="text-success" />
         </div>
-        {s.extra > 0 && <p className="mt-3 text-xs text-muted-foreground">Extra paid above per-head share: {rs(s.extra)}</p>}
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <label className="text-sm text-muted-foreground">Per person ₹
+            <NumField value={per} onSave={(v) => updateMatch({ per_person: v })} />
+          </label>
+          <label className="text-sm text-muted-foreground">Turf fee ₹
+            <NumField value={match.total_cost} onSave={(v) => updateMatch({ total_cost: v })} />
+          </label>
+        </div>
       </div>
 
-      <form onSubmit={addPlayers} className="mt-6 flex gap-2">
-        <Input placeholder="Add players — comma separated" value={names} onChange={(e) => setNames(e.target.value)} />
-        <Button><Plus className="h-4 w-4" /> Add</Button>
+      <form onSubmit={add} className="mt-6 space-y-3 rounded-2xl border bg-card p-4 shadow-sm">
+        <div className="text-sm font-medium">Add player</div>
+        <div className="flex flex-wrap gap-2">
+          {(Object.keys(LABELS) as PT[]).map((t) => (
+            <button type="button" key={t} onClick={() => setType(t)}
+              className={`rounded-full border px-3 py-1.5 text-sm transition ${t === type ? "border-foreground bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}>
+              {LABELS[t]}
+            </button>
+          ))}
+        </div>
+        <Input placeholder="Player name" value={name} onChange={(e) => setName(e.target.value)} required />
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Input type="number" inputMode="decimal" min={0} placeholder={`${amtLabel} (default ${per})`} value={amt} onChange={(e) => setAmt(e.target.value)} />
+          {type === "split" && <Input placeholder="Partner's name" value={partner} onChange={(e) => setPartner(e.target.value)} />}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {[per, 100, per * 2, 200].filter((v, i, a) => v > 0 && a.indexOf(v) === i).map((v) => (
+            <button type="button" key={v} onClick={() => setAmt(String(v))} className="rounded-md bg-muted px-2.5 py-1 text-xs hover:bg-muted/70">₹{v}</button>
+          ))}
+        </div>
+        <Button className="w-full" disabled={busy}><Plus className="h-4 w-4" /> Add</Button>
       </form>
 
       <div className="mt-4 divide-y rounded-2xl border bg-card">
-        {players.length === 0 && <p className="p-6 text-center text-sm text-muted-foreground">No players yet.</p>}
-        {players.map((p) => {
-          const paid = p.cash + p.upi;
-          const bal = paid - s.share;
+        {rows.length === 0 && <p className="p-6 text-center text-sm text-muted-foreground">No players yet.</p>}
+        {rows.map((r, i) => {
+          const later = r.pay_type === "later";
           return (
-            <div key={p.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
-              <div className="flex flex-1 items-center justify-between sm:block">
-                <div className="font-medium">{p.name}</div>
-                <div className={`text-xs ${Math.abs(bal) < 0.01 ? "text-success" : bal > 0 ? "text-success" : "text-destructive"}`}>
-                  {Math.abs(bal) < 0.01 ? "Paid" : bal > 0 ? `+${rs(bal)} extra` : `Owes ${rs(-bal)}`}
-                </div>
+            <div key={r.id} className="flex items-center gap-3 p-3">
+              <span className="w-5 text-xs text-muted-foreground">{i + 1}</span>
+              <div className="min-w-0 flex-1">
+                <div className="truncate font-medium">{r.name}</div>
+                {r.pay_type === "split" && <div className="text-xs text-muted-foreground">with {r.partner}</div>}
+                {later && (
+                  <div className="mt-1 flex gap-2 text-xs">
+                    <button onClick={() => markPaid(r, "cash")} className="flex items-center gap-1 text-muted-foreground hover:text-foreground"><Wallet className="h-3 w-3" /> Paid cash</button>
+                    <button onClick={() => markPaid(r, "upi")} className="flex items-center gap-1 text-muted-foreground hover:text-foreground"><Smartphone className="h-3 w-3" /> Paid UPI</button>
+                  </div>
+                )}
               </div>
-              <div className="flex items-center gap-2">
-                <AmountField icon={<Wallet className="h-3.5 w-3.5" />} label="Cash" value={p.cash} onSave={(v) => update(p.id, { cash: v })} />
-                <AmountField icon={<Smartphone className="h-3.5 w-3.5" />} label="UPI" value={p.upi} onSave={(v) => update(p.id, { upi: v })} />
-                <Button variant="ghost" size="icon" onClick={() => remove(p.id)} aria-label={`Remove ${p.name}`}><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>
-              </div>
+              <span className={`rounded-full px-2 py-0.5 text-xs ${TONE[r.pay_type]}`}>{LABELS[r.pay_type]}</span>
+              <span className={`w-16 text-right font-medium ${later ? "text-destructive" : r.amount > per ? "text-success" : ""}`}>
+                {later ? rs(r.owed ?? per) : rs(r.amount)}
+              </span>
+              <Button variant="ghost" size="icon" onClick={() => remove(r.id)} aria-label={`Remove ${r.name}`}><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>
             </div>
           );
         })}
       </div>
 
-      {unpaid.length > 0 && (
-        <div className="mt-6 rounded-2xl border border-destructive/30 p-4">
-          <div className="text-sm font-medium">Still to pay ({unpaid.length})</div>
-          <ul className="mt-2 space-y-1 text-sm">
-            {unpaid.map((p) => (
-              <li key={p.id} className="flex justify-between"><span>{p.name}</span><span className="text-destructive">{rs(s.share - p.cash - p.upi)}</span></li>
-            ))}
-          </ul>
+      {rows.length > 0 && (
+        <div className="mt-6 space-y-2 rounded-2xl border bg-card p-5 text-sm shadow-sm">
+          <div className="mb-2 font-medium">Summary</div>
+          <SumRow k={`Total due (@ ${rs(per)}/head)`} v={rs(s.due)} />
+          <SumRow k="Cash received" v={rs(s.cash)} />
+          <SumRow k="UPI received" v={rs(s.upi)} />
+          <SumRow k="Still to collect" v={s.pending > 0 ? rs(s.pending) : "—"} tone="text-destructive" />
+          <SumRow k="Turf fee" v={match.total_cost > 0 ? rs(match.total_cost) : "—"} />
+          <SumRow k="Vs turf fee" v={diff === 0 ? "Settled" : diff > 0 ? `+${rs(diff)}` : `${rs(-diff)} short`} tone={diff >= 0 ? "text-success" : "text-destructive"} />
+          <div className="mt-3 flex items-center justify-between rounded-xl bg-success/10 p-3">
+            <span className="font-medium text-success">Your extra cut</span>
+            <span className="text-xl font-semibold text-success">{rs(s.extra)}</span>
+          </div>
         </div>
       )}
     </div>
   );
+}
+
+function SumRow({ k, v, tone }: { k: string; v: string; tone?: string }) {
+  return <div className="flex justify-between"><span className="text-muted-foreground">{k}</span><span className={`font-medium ${tone ?? ""}`}>{v}</span></div>;
 }
 
 function Stat({ label, value, tone }: { label: string; value: string; tone?: string | undefined }) {
@@ -304,21 +354,11 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: str
   );
 }
 
-function AmountField({ icon, label, value, onSave }: { icon: React.ReactNode; label: string; value: number; onSave: (v: number) => void }) {
-  const [v, setV] = useState(value ? String(value) : "");
-  useEffect(() => setV(value ? String(value) : ""), [value]);
+function NumField({ value, onSave }: { value: number; onSave: (v: number) => void }) {
+  const [v, setV] = useState(String(value));
+  useEffect(() => setV(String(value)), [value]);
   return (
-    <label className="flex h-9 flex-1 items-center gap-1.5 rounded-md border bg-background px-2 text-sm sm:w-28 sm:flex-none">
-      <span className="text-muted-foreground" title={label}>{icon}</span>
-      <input
-        type="number"
-        inputMode="decimal"
-        placeholder={label}
-        value={v}
-        onChange={(e) => setV(e.target.value)}
-        onBlur={() => Number(v || 0) !== value && onSave(Number(v) || 0)}
-        className="w-full bg-transparent outline-none"
-      />
-    </label>
+    <Input type="number" inputMode="decimal" min={0} value={v} onChange={(e) => setV(e.target.value)}
+      onBlur={() => Number(v || 0) !== value && onSave(Number(v) || 0)} className="mt-1 h-9 text-foreground" />
   );
 }
