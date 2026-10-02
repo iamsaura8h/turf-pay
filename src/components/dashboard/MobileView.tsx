@@ -11,6 +11,7 @@ import {
   type PaymentType,
 } from "@/types/turf";
 import { WhatsAppShareModal } from "@/components/shared/WhatsAppShareModal";
+import { FootballStickerLoader } from "@/components/shared/FootballStickerLoader";
 
 interface MobileViewProps {
   matches: (Match & { collected: number; count: number })[];
@@ -24,6 +25,7 @@ interface MobileViewProps {
   onAddPlayer: (name: string, amt: number, type: PaymentType, partner?: string) => Promise<void>;
   onMarkPaid: (player: Player, how: "cash" | "upi") => Promise<void>;
   onRemovePlayer: (playerId: string) => Promise<void>;
+  isMatchLoading?: boolean;
 }
 
 export function MobileView({
@@ -38,6 +40,7 @@ export function MobileView({
   onAddPlayer,
   onMarkPaid,
   onRemovePlayer,
+  isMatchLoading = false,
 }: MobileViewProps) {
   // New match form state
   const [newTitle, setNewTitle] = useState("");
@@ -97,6 +100,22 @@ export function MobileView({
     setPartnerName("");
     setIsAddingPlayer(false);
   };
+
+  // If loading a specific match on mobile
+  if (selectedMatchId && isMatchLoading) {
+    return (
+      <div className="w-full px-4 py-4 pb-28 space-y-4">
+        <button
+          type="button"
+          onClick={() => onSelectMatch(null)}
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground py-1"
+        >
+          <ArrowLeft className="h-4 w-4" /> All Games
+        </button>
+        <FootballStickerLoader message="Opening match dues..." />
+      </div>
+    );
+  }
 
   // If viewing a specific match on mobile
   if (selectedMatchId && activeMatch) {

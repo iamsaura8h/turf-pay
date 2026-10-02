@@ -23,6 +23,7 @@ import {
   type PaymentType,
 } from "@/types/turf";
 import { WhatsAppShareModal } from "@/components/shared/WhatsAppShareModal";
+import { FootballStickerLoader } from "@/components/shared/FootballStickerLoader";
 
 interface DesktopLandscapeViewProps {
   matches: (Match & { collected: number; count: number })[];
@@ -36,6 +37,7 @@ interface DesktopLandscapeViewProps {
   onAddPlayer: (name: string, amt: number, type: PaymentType, partner?: string) => Promise<void>;
   onMarkPaid: (player: Player, how: "cash" | "upi") => Promise<void>;
   onRemovePlayer: (playerId: string) => Promise<void>;
+  isMatchLoading?: boolean;
 }
 
 export function DesktopLandscapeView({
@@ -50,6 +52,7 @@ export function DesktopLandscapeView({
   onAddPlayer,
   onMarkPaid,
   onRemovePlayer,
+  isMatchLoading = false,
 }: DesktopLandscapeViewProps) {
   // New match form state
   const [newTitle, setNewTitle] = useState("");
@@ -316,7 +319,9 @@ export function DesktopLandscapeView({
 
         {/* RIGHT COLUMN: Active Match Workspace (8 cols) */}
         <main className="col-span-12 lg:col-span-8">
-          {!activeMatch ? (
+          {isMatchLoading ? (
+            <FootballStickerLoader message="Opening match ledger..." />
+          ) : !activeMatch ? (
             /* Empty State when no match is selected */
             <div className="rounded-3xl border bg-card p-12 text-center shadow-sm space-y-6">
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-primary/10 text-3xl">

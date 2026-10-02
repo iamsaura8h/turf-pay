@@ -9,6 +9,7 @@ import { LandingPage } from "@/components/landing/LandingPage";
 import { DesktopLandscapeView } from "@/components/dashboard/DesktopLandscapeView";
 import { MobileView } from "@/components/dashboard/MobileView";
 import { AuthModal } from "@/components/auth/AuthModal";
+import { FootballStickerLoader } from "@/components/shared/FootballStickerLoader";
 import type { Match, Player, PaymentType } from "@/types/turf";
 
 export default function App() {
@@ -27,6 +28,7 @@ export default function App() {
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);
   const [activeMatch, setActiveMatch] = useState<(Match & { per_person: number }) | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
+  const [isMatchLoading, setIsMatchLoading] = useState(false);
 
   // 1. Listen for Supabase session changes
   useEffect(() => {
@@ -95,52 +97,66 @@ export default function App() {
     if (!selectedMatchId) {
       setActiveMatch(null);
       setPlayers([]);
+      setIsMatchLoading(false);
       return;
     }
 
-    const { data: m, error: mErr } = await supabase
-      .from("matches")
-      .select("*")
-      .eq("id", selectedMatchId)
-      .single();
+    setIsMatchLoading(true);
 
-    if (mErr) {
-      console.error(mErr);
-      return;
+    try {
+      const { data: m, error: mErr } = await supabase
+        .from("matches")
+        .select("*")
+        .eq("id", selectedMatchId)
+        .single();
+
+      if (mErr) {
+        console.error(mErr);
+        return;
+      }
+
+      const { data: p, error: pErr } = await supabase
+        .from("players")
+        .select("*")
+        .eq("match_id", selectedMatchId)
+        .order("created_at");
+
+      if (pErr) {
+        console.error(pErr);
+        return;
+      }
+
+      if (m) {
+        setActiveMatch({
+          ...m,
+          total_cost: Number(m.total_cost),
+          per_person: Number(m.per_person || 0),
+        });
+      }
+
+      setPlayers(
+        (p ?? []).map((x) => ({
+          id: x.id,
+          name: x.name,
+          pay_type: x.pay_type as PaymentType,
+          amount: Number(x.amount),
+          cash: Number(x.cash || 0),
+          upi: Number(x.upi || 0),
+          partner: x.partner,
+          owed: x.owed == null ? null : Number(x.owed),
+        })),
+      );
+    } finally {
+      setIsMatchLoading(false);
     }
-
-    const { data: p, error: pErr } = await supabase
-      .from("players")
-      .select("*")
-      .eq("match_id", selectedMatchId)
-      .order("created_at");
-
-    if (pErr) {
-      console.error(pErr);
-      return;
-    }
-
-    if (m) {
-      setActiveMatch({
-        ...m,
-        total_cost: Number(m.total_cost),
-        per_person: Number(m.per_person || 0),
-      });
-    }
-
-    setPlayers(
-      (p ?? []).map((x) => ({
-        id: x.id,
-        name: x.name,
-        pay_type: x.pay_type as PaymentType,
-        amount: Number(x.amount),
-        cash: Number(x.cash || 0),
-        upi: Number(x.upi || 0),
-        partner: x.partner,
-        owed: x.owed == null ? null : Number(x.owed),
-      })),
-    );
   }, [selectedMatchId]);
+
+  const handleSelectMatch = (id: string | null) => {
+    setSelectedMatchId(id);
+    if (id && id !== selectedMatchId) {
+      setIsMatchLoading(true);
+    }
+  };
 
   useEffect(() => {
     loadActiveMatchData();
@@ -264,14 +280,7 @@ export default function App() {
   };
 
   if (!ready) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
-        <div className="flex flex-col items-center gap-3">
-          <span className="text-4xl animate-bounce">⚽</span>
-          <p className="text-sm font-medium text-muted-foreground">Loading Turf Split...</p>
-        </div>
-      </div>
-    );
+    return <FootballStickerLoader fullScreen message="Warming up the pitch..." />;
   }
 
   // If user is unauthenticated or has navigated to "landing"
@@ -346,7 +355,7 @@ export default function App() {
           <DesktopLandscapeView
             matches={matches}
             selectedMatchId={selectedMatchId}
-            onSelectMatch={setSelectedMatchId}
+            onSelectMatch={handleSelectMatch}
             onCreateMatch={handleCreateMatch}
             onDeleteMatch={handleDeleteMatch}
             onUpdateMatch={handleUpdateMatch}
@@ -355,6 +364,7 @@ export default function App() {
             onAddPlayer={handleAddPlayer}
             onMarkPaid={handleMarkPaid}
             onRemovePlayer={handleRemovePlayer}
+            isMatchLoading={isMatchLoading}
           />
         </div>
 
@@ -363,7 +373,7 @@ export default function App() {
           <MobileView
             matches={matches}
             selectedMatchId={selectedMatchId}
-            onSelectMatch={setSelectedMatchId}
+            onSelectMatch={handleSelectMatch}
             onCreateMatch={handleCreateMatch}
             onDeleteMatch={handleDeleteMatch}
             onUpdateMatch={handleUpdateMatch}
@@ -372,6 +382,7 @@ export default function App() {
             onAddPlayer={handleAddPlayer}
             onMarkPaid={handleMarkPaid}
             onRemovePlayer={handleRemovePlayer}
+            isMatchLoading={isMatchLoading}
           />
         </div>
       </div>
