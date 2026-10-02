@@ -340,16 +340,10 @@ export default function App() {
             <button
               type="button"
               onClick={() => setSelectedMatchId(null)}
-              className="flex items-center gap-2.5 text-lg font-bold tracking-tight hover:opacity-90"
+              className="flex items-center hover:opacity-90 transition-opacity"
             >
-              <span className="grid h-8 w-8 place-items-center rounded-xl bg-foreground text-background text-sm shadow-xs">
-                ⚽
-              </span>
-              <span>Turf Split</span>
+              <img src="/logo1.png" alt="Turf Split" className="h-8 sm:h-9 w-auto object-contain" />
             </button>
-            <span className="hidden sm:inline-block rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-              Dashboard
-            </span>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
@@ -360,7 +354,7 @@ export default function App() {
               className="text-xs text-muted-foreground hover:text-foreground gap-1.5"
             >
               <Home className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Landing Page</span>
+              {/* <span className="hidden sm:inline">Landing Page</span> */}
             </Button>
 
             <div className="hidden md:flex items-center text-xs text-muted-foreground px-2">

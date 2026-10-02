@@ -57,8 +57,8 @@ export function AuthModal({ open, onOpenChange, defaultMode = "in" }: AuthModalP
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <span className="text-2xl">⚽</span>
+          <div className="mx-auto mb-2 flex items-center justify-center">
+            <img src="/logo1.png" alt="Turf Split" className="h-10 w-auto object-contain" />
           </div>
           <DialogTitle className="text-center text-2xl font-bold tracking-tight">
             {mode === "in" ? "Sign in to Turf Split" : "Create an Account"}
