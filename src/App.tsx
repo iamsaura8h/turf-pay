@@ -222,12 +222,38 @@ export default function App() {
     let ins: Array<Record<string, unknown>>;
 
     if (type === "split") {
-      const pt = partner?.trim() || "?";
-      const each = amt / 2;
-      ins = [
-        { ...base, name, pay_type: "split", amount: each, partner: pt },
-        { ...base, name: pt, pay_type: "split", amount: each, partner: name },
-      ];
+      // Split between 2 or more people
+      const rawOthers = (partner || "")
+        .split(",")
+        .map((p) => p.trim())
+        .filter(Boolean);
+
+      const primary = name.trim();
+      const allMembers = [
+        primary,
+        ...rawOthers.filter((o) => o.toLowerCase() !== primary.toLowerCase()),
+      ].filter(Boolean);
+
+      // If only 1 name provided, add a fallback partner name
+      if (allMembers.length < 2) {
+        allMembers.push("Friend");
+      }
+
+      const count = allMembers.length;
+      const totalAmt = amt > 0 ? amt : per * count;
+      const each = Math.round((totalAmt / count) * 100) / 100;
+
+      ins = allMembers.map((member) => {
+        const others = allMembers.filter((m) => m !== member);
+        const partnerStr = others.length > 0 ? others.join(", ") : "Split Group";
+        return {
+          ...base,
+          name: member,
+          pay_type: "split",
+          amount: each,
+          partner: partnerStr,
+        };
+      });
     } else if (type === "later") {
       ins = [{ ...base, name, pay_type: "later", amount: 0, owed: amt || per }];
     } else {
@@ -240,7 +266,13 @@ export default function App() {
       return;
     }
 
-    toast.success(`Added ${name}`);
+    if (type === "split") {
+      toast.success(
+        `Added split for ${ins.length} players (₹${(ins[0]?.amount as number) || 0} each)`,
+      );
+    } else {
+      toast.success(`Added ${name}`);
+    }
     await loadActiveMatchData();
     await loadMatches();
   };

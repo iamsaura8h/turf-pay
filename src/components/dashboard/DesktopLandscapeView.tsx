@@ -11,6 +11,7 @@ import {
   CheckCircle,
   AlertCircle,
   Trophy,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -111,6 +112,29 @@ export function DesktopLandscapeView({
     if (!playerSearch) return players;
     return players.filter((p) => p.name.toLowerCase().includes(playerSearch.toLowerCase()));
   }, [players, playerSearch]);
+
+  // Split calculation helpers
+  const splitFriends = useMemo(() => {
+    return partnerName
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }, [partnerName]);
+
+  const splitMembersCount = useMemo(() => {
+    const hasPrimary = playerName.trim().length > 0;
+    return Math.max(2, (hasPrimary ? 1 : 0) + splitFriends.length);
+  }, [playerName, splitFriends]);
+
+  const splitPerPerson = useMemo(() => {
+    const total = parseFloat(playerAmt) || per * splitMembersCount;
+    return Math.round((total / splitMembersCount) * 100) / 100;
+  }, [playerAmt, per, splitMembersCount]);
+
+  const handleRemoveSplitFriend = (idxToRemove: number) => {
+    const updated = splitFriends.filter((_, idx) => idx !== idxToRemove);
+    setPartnerName(updated.join(", "));
+  };
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -518,219 +542,347 @@ export function DesktopLandscapeView({
               </div>
 
               {/* 2-Column Match Action Workspace (Add Player vs Players Roster) */}
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-stretch">
                 {/* SUB-COL 1: Add Player Card (5 cols) */}
-                <div className="md:col-span-5 rounded-3xl border bg-card p-5 shadow-sm space-y-4">
-                  <h3 className="font-bold text-base tracking-tight flex items-center justify-between">
-                    <span>Add Player</span>
-                    <span className="text-xs font-normal text-muted-foreground">Fast log</span>
-                  </h3>
+                <div className="md:col-span-5 rounded-3xl border bg-card p-5 shadow-sm flex flex-col justify-between min-h-[560px]">
+                  <div>
+                    <h3 className="font-bold text-base tracking-tight flex items-center justify-between mb-3.5">
+                      <span>Add Player</span>
+                      <span className="text-xs font-normal text-muted-foreground">Fast log</span>
+                    </h3>
 
-                  <form onSubmit={handleAddPlayerSubmit} className="space-y-3.5">
-                    {/* Payment Mode Pills */}
-                    <div>
-                      <label className="text-[11px] font-semibold uppercase text-muted-foreground tracking-wider">
-                        Payment Mode
-                      </label>
-                      <div className="grid grid-cols-2 gap-1.5 mt-1.5">
-                        {(["cash", "upi", "later", "split"] as PaymentType[]).map((t) => (
-                          <button
-                            type="button"
-                            key={t}
-                            onClick={() => setPaymentType(t)}
-                            className={`rounded-xl border px-3 py-2 text-xs font-semibold transition-all ${
-                              paymentType === t
-                                ? "bg-foreground text-background shadow-xs border-foreground"
-                                : "bg-muted/40 text-muted-foreground hover:text-foreground"
-                            }`}
-                          >
-                            {PAYMENT_LABELS[t]}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Name Input */}
-                    <div>
-                      <label className="text-[11px] font-semibold uppercase text-muted-foreground tracking-wider">
-                        Player Name
-                      </label>
-                      <Input
-                        placeholder="Player full name"
-                        value={playerName}
-                        onChange={(e) => setPlayerName(e.target.value)}
-                        required
-                        className="mt-1 h-9 text-sm"
-                      />
-                    </div>
-
-                    {/* Amount Input & Split Partner */}
-                    <div className="space-y-2">
-                      <label className="text-[11px] font-semibold uppercase text-muted-foreground tracking-wider">
-                        {paymentType === "later"
-                          ? "Amount Owed (default per-head)"
-                          : paymentType === "split"
-                            ? "Total Paid for Both"
-                            : "Amount Paid (default per-head)"}
-                      </label>
-                      <Input
-                        type="number"
-                        inputMode="decimal"
-                        min={0}
-                        placeholder={`Default: ₹${per}`}
-                        value={playerAmt}
-                        onChange={(e) => setPlayerAmt(e.target.value)}
-                        className="h-9 text-sm"
-                      />
-
-                      {paymentType === "split" && (
-                        <div>
-                          <label className="text-[11px] font-semibold uppercase text-muted-foreground tracking-wider">
-                            Partner Name
-                          </label>
-                          <Input
-                            placeholder="Partner's name"
-                            value={partnerName}
-                            onChange={(e) => setPartnerName(e.target.value)}
-                            className="mt-1 h-9 text-sm"
-                          />
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Quick Amount Chips */}
-                    <div>
-                      <div className="text-[10px] text-muted-foreground mb-1">
-                        Quick amount presets:
-                      </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {[per, 100, per * 2, 200]
-                          .filter((v, i, a) => v > 0 && a.indexOf(v) === i)
-                          .map((val) => (
+                    <form onSubmit={handleAddPlayerSubmit} className="space-y-3.5">
+                      {/* Payment Mode Pills */}
+                      <div>
+                        <label className="text-[11px] font-semibold uppercase text-muted-foreground tracking-wider">
+                          Payment Mode
+                        </label>
+                        <div className="grid grid-cols-2 gap-1.5 mt-1.5">
+                          {(["cash", "upi", "later", "split"] as PaymentType[]).map((t) => (
                             <button
                               type="button"
-                              key={val}
-                              onClick={() => setPlayerAmt(String(val))}
-                              className="rounded-lg bg-muted px-2 py-1 text-xs hover:bg-muted/80 font-medium"
+                              key={t}
+                              onClick={() => setPaymentType(t)}
+                              className={`rounded-xl border px-3 py-2 text-xs font-semibold transition-all ${
+                                paymentType === t
+                                  ? "bg-foreground text-background shadow-xs border-foreground"
+                                  : "bg-muted/40 text-muted-foreground hover:text-foreground"
+                              }`}
                             >
-                              ₹{val}
+                              {PAYMENT_LABELS[t]}
                             </button>
                           ))}
+                        </div>
                       </div>
-                    </div>
 
-                    <Button
-                      disabled={isAddingPlayer}
-                      className="w-full h-10 font-semibold shadow-xs"
-                    >
-                      <Plus className="h-4 w-4 mr-1.5" /> Add Player
-                    </Button>
-                  </form>
+                      {/* Name Input */}
+                      <div>
+                        <label className="text-[11px] font-semibold uppercase text-muted-foreground tracking-wider">
+                          {paymentType === "split" ? "Primary Player (Who Paid)" : "Player Name"}
+                        </label>
+                        <Input
+                          placeholder={
+                            paymentType === "split"
+                              ? "e.g. Rahul (paid for group)"
+                              : "Player full name"
+                          }
+                          value={playerName}
+                          onChange={(e) => setPlayerName(e.target.value)}
+                          required
+                          className="mt-1 h-9 text-sm"
+                        />
+                      </div>
+
+                      {/* Split Friends Multi-input */}
+                      {paymentType === "split" && (
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[11px] font-semibold uppercase text-muted-foreground tracking-wider">
+                              Split With Friends
+                            </label>
+                            <span className="text-[10px] text-muted-foreground font-medium">
+                              {splitMembersCount} in group
+                            </span>
+                          </div>
+                          <Input
+                            placeholder="Type friends with commas (e.g. Malay, Harshil, Lojeet)"
+                            value={partnerName}
+                            onChange={(e) => setPartnerName(e.target.value)}
+                            className="h-9 text-sm"
+                          />
+                          <p className="text-[10px] text-muted-foreground">
+                            Tip: Add 2, 3, 5, 6+ friends separated by commas.
+                          </p>
+
+                          {/* Removable chips */}
+                          <div className="flex flex-wrap gap-1.5 pt-0.5">
+                            {playerName.trim() && (
+                              <span className="inline-flex items-center gap-1 rounded-md bg-purple-500/15 border border-purple-500/30 px-2 py-0.5 text-[11px] font-semibold text-purple-700 dark:text-purple-300">
+                                👑 {playerName.trim()}{" "}
+                                <span className="text-[9px] opacity-75">(Payer)</span>
+                              </span>
+                            )}
+                            {splitFriends.map((friend, idx) => (
+                              <span
+                                key={idx}
+                                className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground border border-border/60"
+                              >
+                                <span>{friend}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveSplitFriend(idx)}
+                                  className="text-muted-foreground hover:text-destructive transition-colors ml-0.5"
+                                  title={`Remove ${friend}`}
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Amount Input */}
+                      <div className="space-y-1.5">
+                        <label className="text-[11px] font-semibold uppercase text-muted-foreground tracking-wider">
+                          {paymentType === "later"
+                            ? "Amount Owed (default per-head)"
+                            : paymentType === "split"
+                              ? "Total Amount Paid for Group"
+                              : "Amount Paid (default per-head)"}
+                        </label>
+                        <Input
+                          type="number"
+                          inputMode="decimal"
+                          min={0}
+                          placeholder={
+                            paymentType === "split"
+                              ? `Default: ₹${per * splitMembersCount} (${splitMembersCount} × ₹${per})`
+                              : `Default: ₹${per}`
+                          }
+                          value={playerAmt}
+                          onChange={(e) => setPlayerAmt(e.target.value)}
+                          className="h-9 text-sm"
+                        />
+                      </div>
+
+                      {/* Dynamic Live Status & Split Breakdown */}
+                      {paymentType === "split" ? (
+                        <div className="rounded-2xl border border-purple-500/25 bg-purple-500/10 p-3 text-xs space-y-1">
+                          <div className="flex items-center justify-between font-bold text-purple-700 dark:text-purple-300">
+                            <span className="flex items-center gap-1.5">
+                              <Users className="h-3.5 w-3.5" />
+                              {splitMembersCount} Players Split
+                            </span>
+                            <span>{formatCurrency(splitPerPerson)} / person</span>
+                          </div>
+                          <div className="text-[11px] text-muted-foreground flex justify-between pt-0.5">
+                            <span>
+                              Total:{" "}
+                              <strong>
+                                {formatCurrency(parseFloat(playerAmt) || per * splitMembersCount)}
+                              </strong>
+                            </span>
+                            <span>Equal share</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="rounded-2xl border border-border/60 bg-muted/30 p-2.5 text-xs space-y-1">
+                          <div className="flex items-center justify-between text-muted-foreground font-medium text-[11px]">
+                            <span>
+                              Match Share:{" "}
+                              <strong className="text-foreground">{formatCurrency(per)}</strong>
+                            </span>
+                            <span>
+                              Roster:{" "}
+                              <strong className="text-foreground">{players.length} players</strong>
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground">
+                            {paymentType === "later"
+                              ? "Will be marked as Pending Dues. Settle anytime in the roster."
+                              : `Recording full ${paymentType.toUpperCase()} payment.`}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Quick Amount Chips */}
+                      <div>
+                        <div className="text-[10px] text-muted-foreground mb-1">
+                          Quick amount presets:
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {(paymentType === "split"
+                            ? [per * splitMembersCount, 500, 600, 1000, 1200]
+                            : [per, 100, per * 2, 200]
+                          )
+                            .filter((v, i, a) => v > 0 && a.indexOf(v) === i)
+                            .map((val) => (
+                              <button
+                                type="button"
+                                key={val}
+                                onClick={() => setPlayerAmt(String(val))}
+                                className="rounded-lg bg-muted px-2 py-1 text-xs hover:bg-muted/80 font-medium"
+                              >
+                                ₹{val}
+                              </button>
+                            ))}
+                        </div>
+                      </div>
+
+                      <Button
+                        disabled={isAddingPlayer}
+                        className="w-full h-10 font-semibold shadow-xs"
+                      >
+                        <Plus className="h-4 w-4 mr-1.5" />{" "}
+                        {paymentType === "split"
+                          ? `Add Split (${splitMembersCount} Players · ${formatCurrency(splitPerPerson)} each)`
+                          : "Add Player"}
+                      </Button>
+                    </form>
+                  </div>
                 </div>
 
                 {/* SUB-COL 2: Players Roster & Ledger (7 cols) */}
-                <div className="md:col-span-7 rounded-3xl border bg-card p-5 shadow-sm space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-bold text-base tracking-tight">Active Roster</h3>
-                      <p className="text-xs text-muted-foreground">
-                        {players.length} players recorded
-                      </p>
+                <div className="md:col-span-7 rounded-3xl border bg-card p-5 shadow-sm flex flex-col justify-between min-h-[560px]">
+                  <div>
+                    <div className="flex items-center justify-between pb-3">
+                      <div>
+                        <h3 className="font-bold text-base tracking-tight">Active Roster</h3>
+                        <p className="text-xs text-muted-foreground">
+                          {players.length} players recorded
+                        </p>
+                      </div>
+
+                      <div className="w-44">
+                        <Input
+                          placeholder="Search player..."
+                          value={playerSearch}
+                          onChange={(e) => setPlayerSearch(e.target.value)}
+                          className="h-8 text-xs"
+                        />
+                      </div>
                     </div>
 
-                    <div className="w-40">
-                      <Input
-                        placeholder="Search player..."
-                        value={playerSearch}
-                        onChange={(e) => setPlayerSearch(e.target.value)}
-                        className="h-8 text-xs"
-                      />
+                    {/* Player Entries */}
+                    <div className="divide-y max-h-[420px] overflow-y-auto pr-1">
+                      {filteredPlayers.length === 0 ? (
+                        <div className="py-16 text-center text-muted-foreground text-xs space-y-1">
+                          <Users className="h-8 w-8 mx-auto opacity-30" />
+                          <div>No players added yet.</div>
+                          <div className="text-[11px]">
+                            Use the form on the left to add players.
+                          </div>
+                        </div>
+                      ) : (
+                        filteredPlayers.map((player, idx) => {
+                          const isLater = player.pay_type === "later";
+
+                          return (
+                            <div
+                              key={player.id}
+                              className="py-3 flex items-center justify-between gap-3 text-xs"
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <span className="w-4 text-muted-foreground font-mono text-[11px]">
+                                  {idx + 1}
+                                </span>
+                                <div className="min-w-0">
+                                  <div className="font-semibold text-sm truncate text-foreground">
+                                    {player.name}
+                                  </div>
+                                  {player.pay_type === "split" && (
+                                    <div
+                                      className="text-[11px] text-muted-foreground truncate max-w-[220px]"
+                                      title={`Split with ${player.partner || "friend"}`}
+                                    >
+                                      Split with {player.partner || "friend"}
+                                    </div>
+                                  )}
+
+                                  {/* Quick Settle actions for Pay Later */}
+                                  {isLater && (
+                                    <div className="mt-1.5 flex items-center gap-1.5">
+                                      <button
+                                        type="button"
+                                        onClick={() => onMarkPaid(player, "cash")}
+                                        className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 hover:bg-emerald-500/20"
+                                      >
+                                        <Wallet className="h-3 w-3" /> Paid Cash
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => onMarkPaid(player, "upi")}
+                                        className="inline-flex items-center gap-1 rounded-md bg-blue-500/10 px-2 py-0.5 text-[10px] font-semibold text-blue-600 hover:bg-blue-500/20"
+                                      >
+                                        <Smartphone className="h-3 w-3" /> Paid UPI
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-3 shrink-0">
+                                <span
+                                  className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold border ${
+                                    PAYMENT_TONES[player.pay_type]
+                                  }`}
+                                >
+                                  {PAYMENT_LABELS[player.pay_type]}
+                                </span>
+
+                                <span
+                                  className={`w-14 text-right font-bold ${
+                                    isLater
+                                      ? "text-amber-600 dark:text-amber-400"
+                                      : "text-foreground"
+                                  }`}
+                                >
+                                  {isLater
+                                    ? formatCurrency(player.owed ?? per)
+                                    : formatCurrency(player.amount)}
+                                </span>
+
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => onRemovePlayer(player.id)}
+                                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
                     </div>
                   </div>
 
-                  {/* Player Entries */}
-                  <div className="divide-y max-h-[460px] overflow-y-auto pr-1">
-                    {filteredPlayers.length === 0 ? (
-                      <div className="py-12 text-center text-muted-foreground text-xs">
-                        No players added yet. Use the form on the left to add your first player.
-                      </div>
-                    ) : (
-                      filteredPlayers.map((player, idx) => {
-                        const isLater = player.pay_type === "later";
-
-                        return (
-                          <div
-                            key={player.id}
-                            className="py-3 flex items-center justify-between gap-3 text-xs"
-                          >
-                            <div className="flex items-center gap-3 min-w-0">
-                              <span className="w-4 text-muted-foreground font-mono text-[11px]">
-                                {idx + 1}
-                              </span>
-                              <div className="min-w-0">
-                                <div className="font-semibold text-sm truncate text-foreground">
-                                  {player.name}
-                                </div>
-                                {player.pay_type === "split" && (
-                                  <div className="text-[11px] text-muted-foreground">
-                                    Split with {player.partner || "friend"}
-                                  </div>
-                                )}
-
-                                {/* Quick Settle actions for Pay Later */}
-                                {isLater && (
-                                  <div className="mt-1.5 flex items-center gap-1.5">
-                                    <button
-                                      type="button"
-                                      onClick={() => onMarkPaid(player, "cash")}
-                                      className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 hover:bg-emerald-500/20"
-                                    >
-                                      <Wallet className="h-3 w-3" /> Paid Cash
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => onMarkPaid(player, "upi")}
-                                      className="inline-flex items-center gap-1 rounded-md bg-blue-500/10 px-2 py-0.5 text-[10px] font-semibold text-blue-600 hover:bg-blue-500/20"
-                                    >
-                                      <Smartphone className="h-3 w-3" /> Paid UPI
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-
-                            <div className="flex items-center gap-3 shrink-0">
-                              <span
-                                className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold border ${
-                                  PAYMENT_TONES[player.pay_type]
-                                }`}
-                              >
-                                {PAYMENT_LABELS[player.pay_type]}
-                              </span>
-
-                              <span
-                                className={`w-14 text-right font-bold ${
-                                  isLater ? "text-amber-600 dark:text-amber-400" : "text-foreground"
-                                }`}
-                              >
-                                {isLater
-                                  ? formatCurrency(player.owed ?? per)
-                                  : formatCurrency(player.amount)}
-                              </span>
-
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => onRemovePlayer(player.id)}
-                                className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
+                  {/* Symmetrical Bottom Status Strip */}
+                  <div className="pt-3 border-t flex items-center justify-between text-xs text-muted-foreground mt-3">
+                    <div className="flex items-center gap-2">
+                      <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
+                      <span>
+                        Squad: <strong className="text-foreground">{players.length}</strong>
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span>
+                        Collected:{" "}
+                        <strong className="text-foreground">
+                          {formatCurrency(stats.collected)}
+                        </strong>
+                      </span>
+                      {stats.pending > 0 && (
+                        <span>
+                          Pending:{" "}
+                          <strong className="text-amber-600 dark:text-amber-400">
+                            {formatCurrency(stats.pending)}
+                          </strong>
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

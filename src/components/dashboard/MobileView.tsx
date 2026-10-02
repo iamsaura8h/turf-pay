@@ -1,5 +1,15 @@
 import { useState, useMemo } from "react";
-import { ArrowLeft, Plus, Trash2, Wallet, Smartphone, Share2, Calendar, Users } from "lucide-react";
+import {
+  ArrowLeft,
+  Plus,
+  Trash2,
+  Wallet,
+  Smartphone,
+  Share2,
+  Calendar,
+  Users,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -81,8 +91,30 @@ export function MobileView({
     setIsCreating(true);
     await onCreateMatch(newTitle, Number(newCost) || 0);
     setNewTitle("");
-    setNewCost("");
     setIsCreating(false);
+  };
+
+  // Split calculation helpers
+  const splitFriends = useMemo(() => {
+    return partnerName
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }, [partnerName]);
+
+  const splitMembersCount = useMemo(() => {
+    const hasPrimary = playerName.trim().length > 0;
+    return Math.max(2, (hasPrimary ? 1 : 0) + splitFriends.length);
+  }, [playerName, splitFriends]);
+
+  const splitPerPerson = useMemo(() => {
+    const total = parseFloat(playerAmt) || per * splitMembersCount;
+    return Math.round((total / splitMembersCount) * 100) / 100;
+  }, [playerAmt, per, splitMembersCount]);
+
+  const handleRemoveSplitFriend = (idxToRemove: number) => {
+    const updated = splitFriends.filter((_, idx) => idx !== idxToRemove);
+    setPartnerName(updated.join(", "));
   };
 
   const handleAddPlayerSubmit = async (e: React.FormEvent) => {
@@ -250,36 +282,91 @@ export function MobileView({
           </div>
 
           <Input
-            placeholder="Player name"
+            placeholder={paymentType === "split" ? "Who paid (e.g. Rahul)" : "Player full name"}
             value={playerName}
             onChange={(e) => setPlayerName(e.target.value)}
             required
             className="h-9 text-sm"
           />
 
-          <div className="flex gap-2">
+          {/* Split Friends Multi-input */}
+          {paymentType === "split" && (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold uppercase text-muted-foreground tracking-wider">
+                  Split with friends
+                </span>
+                <span className="text-[10px] text-muted-foreground font-medium">
+                  {splitMembersCount} in group
+                </span>
+              </div>
+              <Input
+                placeholder="Friends with commas (e.g. Malay, Harshil, Lojeet)"
+                value={partnerName}
+                onChange={(e) => setPartnerName(e.target.value)}
+                className="h-9 text-sm"
+              />
+              <div className="flex flex-wrap gap-1.5 pt-0.5">
+                {playerName.trim() && (
+                  <span className="inline-flex items-center gap-1 rounded-md bg-purple-500/15 border border-purple-500/30 px-2 py-0.5 text-[11px] font-semibold text-purple-700 dark:text-purple-300">
+                    👑 {playerName.trim()}
+                  </span>
+                )}
+                {splitFriends.map((friend, idx) => (
+                  <span
+                    key={idx}
+                    className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground border border-border/60"
+                  >
+                    <span>{friend}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveSplitFriend(idx)}
+                      className="text-muted-foreground hover:text-destructive ml-0.5"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Amount input */}
+          <div className="space-y-1">
             <Input
               type="number"
               inputMode="decimal"
               min={0}
-              placeholder={`Amount (₹${per})`}
+              placeholder={
+                paymentType === "split"
+                  ? `Total paid (Default: ₹${per * splitMembersCount})`
+                  : `Amount (Default: ₹${per})`
+              }
               value={playerAmt}
               onChange={(e) => setPlayerAmt(e.target.value)}
-              className="h-9 text-sm flex-1"
+              className="h-9 text-sm w-full"
             />
-            {paymentType === "split" && (
-              <Input
-                placeholder="Partner's name"
-                value={partnerName}
-                onChange={(e) => setPartnerName(e.target.value)}
-                className="h-9 text-sm flex-1"
-              />
-            )}
           </div>
+
+          {/* Live Split calculation breakdown */}
+          {paymentType === "split" && (
+            <div className="rounded-xl border border-purple-500/30 bg-purple-500/10 p-2.5 text-xs flex items-center justify-between font-medium">
+              <span className="text-purple-700 dark:text-purple-300 flex items-center gap-1.5">
+                <Users className="h-3.5 w-3.5" />
+                {splitMembersCount} Players Split
+              </span>
+              <span className="font-bold text-foreground">
+                {formatCurrency(splitPerPerson)} / person
+              </span>
+            </div>
+          )}
 
           {/* Quick presets */}
           <div className="flex flex-wrap gap-1.5">
-            {[per, 100, per * 2, 200]
+            {(paymentType === "split"
+              ? [per * splitMembersCount, 500, 600, 1000]
+              : [per, 100, per * 2, 200]
+            )
               .filter((v, i, a) => v > 0 && a.indexOf(v) === i)
               .map((val) => (
                 <button
@@ -293,8 +380,11 @@ export function MobileView({
               ))}
           </div>
 
-          <Button disabled={isAddingPlayer} className="w-full h-10 font-semibold">
-            <Plus className="h-4 w-4 mr-1" /> Add Player
+          <Button disabled={isAddingPlayer} className="w-full h-10 font-semibold shadow-xs">
+            <Plus className="h-4 w-4 mr-1" />
+            {paymentType === "split"
+              ? `Add Split (${splitMembersCount} Players · ${formatCurrency(splitPerPerson)} each)`
+              : "Add Player"}
           </Button>
         </form>
 
@@ -321,7 +411,10 @@ export function MobileView({
                       <div className="min-w-0">
                         <div className="font-semibold text-sm truncate">{p.name}</div>
                         {p.pay_type === "split" && (
-                          <div className="text-[10px] text-muted-foreground">
+                          <div
+                            className="text-[10px] text-muted-foreground truncate max-w-[170px]"
+                            title={`Split with ${p.partner || "friend"}`}
+                          >
                             with {p.partner || "friend"}
                           </div>
                         )}
